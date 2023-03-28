@@ -116,13 +116,13 @@ where continent is not Null
 group by date 
 order by 1,2
 
---------Across the World Data show Global Death Percentage
+------Across the World Data show Global Death Percentage
 select date, total_cases as Global_total_cases , cast(total_deaths as float) as Global_total_deaths , (cast(total_deaths as float) / total_cases)*100 as Death_Percentage
 from Coviddeaths
 where continent is not Null and total_deaths is not Null
 order by 1,2
 
---------Across the World Data show Total Global Death Percentage
+------Across the World Data show Total Global Death Percentage
 select sum(new_cases) as Global_total_new_cases , sum(new_deaths) as Global_total_new_deaths , sum(new_deaths)/sum(new_cases)*100 as Global_new_Death_Percentage
 from Coviddeaths
 where continent is not Null
@@ -155,8 +155,8 @@ on dea.location = vac.location and dea.date = vac.date
 where dea.continent is not NULL
 order by 2,3
 
---------ERROR : when run this query, i got Error "Arithmetic overflow error converting expression to data type int".
-Select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations, 
+------ERROR : when run this query, i got Error "Arithmetic overflow error converting expression to data type int".
+select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations, 
 sum(cast(vac.new_vaccinations as int)) over (Partition by dea.location order by dea.location) 
 from Coviddeaths dea
 join Covidvaccination vac
@@ -164,12 +164,66 @@ on dea.location = vac.location and dea.date = vac.date
 where dea.continent is not NULL
 order by 2,3
 
---------SOLUATION : Convert "int" into "bigint" and add "ROWS UNBOUNDED PRECEDING" which row you want to partition
+------SOLUATION : Convert "int" into "bigint" and add "ROWS UNBOUNDED PRECEDING" which row you want to partition
+
 select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations, 
-sum(cast(vac.new_vaccinations as bigint)) over (Partition by dea.location order by dea.location, dea.date ROWS UNBOUNDED PRECEDING) 
+sum(cast(vac.new_vaccinations as bigint)) over (Partition by dea.location order by dea.location, dea.date ROWS UNBOUNDED PRECEDING) as Update_Vaccinated 
 from Coviddeaths dea
 join Covidvaccination vac
 on dea.location = vac.location and dea.date = vac.date
 where dea.continent is not NULL
 order by 2,3
 
+------Now we have to find how many people are vaccinated, using upper query we can't used the new column "Update_Vaccinated" we got ERROR. So,
+------we use CTE (common table expression)
+------ERROR: if No. of column is CTE not same with No. of column in sebquery
+
+with vaccinated_population_Datatable (continent,location,date,population,new_vaccinations,Update_Vaccinated )
+as
+(
+select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations, 
+sum(cast(vac.new_vaccinations as bigint)) over (Partition by dea.location order by dea.location, dea.date ROWS UNBOUNDED PRECEDING) as Update_Vaccinated 
+from Coviddeaths dea
+join Covidvaccination vac
+on dea.location = vac.location and dea.date = vac.date
+where dea.continent is not NULL
+--order by 2,3
+)
+select *, (Update_Vaccinated/population)*100 as vaccinated_population_Percentage from vaccinated_population_Datatable
+
+------Create New Table (Temp Table) and insert the data of other table
+
+create table Covidvaccinationpercentage
+(
+continent nvarchar(255),
+location  nvarchar(255),
+date datetime,
+population numeric, 
+new_vaccinations numeric,
+Update_Vaccinated numeric
+)
+
+insert into Covidvaccinationpercentage
+select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations, 
+sum(cast(vac.new_vaccinations as bigint)) over (Partition by dea.location order by dea.location, dea.date ROWS UNBOUNDED PRECEDING) as Update_Vaccinated 
+from Coviddeaths dea
+join Covidvaccination vac
+on dea.location = vac.location and dea.date = vac.date
+--where dea.continent is not NULL
+--order by 2,3
+
+select * from Covidvaccinationpercentage
+
+------Now we want to drop table but do not know the table is exist or not 
+
+drop table if exists Covidvaccinationpercentage
+
+------Now Create the View for data Visualization
+
+create view Covidvaccinationpercentage as
+select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations, 
+sum(cast(vac.new_vaccinations as bigint)) over (Partition by dea.location order by dea.location, dea.date ROWS UNBOUNDED PRECEDING) as Update_Vaccinated 
+from Coviddeaths dea
+join Covidvaccination vac
+on dea.location = vac.location and dea.date = vac.date
+where dea.continent is not NULL
