@@ -116,8 +116,14 @@ where continent is not Null
 group by date 
 order by 1,2
 
-------Across the World Global Death Percentage
-select date, total_cases as Global_total_cases , total_deaths as Global_total_deaths , (total_deaths / total_cases)*100 as Death_Percentage
+--------Across the World Data show Global Death Percentage
+select date, total_cases as Global_total_cases , cast(total_deaths as float) as Global_total_deaths , (cast(total_deaths as float) / total_cases)*100 as Death_Percentage
+from Coviddeaths
+where continent is not Null and total_deaths is not Null
+order by 1,2
+
+--------Across the World Data show Total Global Death Percentage
+select sum(new_cases) as Global_total_new_cases , sum(new_deaths) as Global_total_new_deaths , sum(new_deaths)/sum(new_cases)*100 as Global_new_Death_Percentage
 from Coviddeaths
 where continent is not Null
 order by 1,2
