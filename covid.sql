@@ -159,8 +159,18 @@ on dea.location = vac.location and dea.date = vac.date
 where dea.continent is not NULL
 order by 2,3
 
+--------ERROR : when run this query, i got Error "Arithmetic overflow error converting expression to data type int".
+Select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations, 
+sum(cast(vac.new_vaccinations as int)) over (Partition by dea.location order by dea.location) 
+from Coviddeaths dea
+join Covidvaccination vac
+on dea.location = vac.location and dea.date = vac.date
+where dea.continent is not NULL
+order by 2,3
+
+--------SOLUATION : Convert "int" into "bigint" and add "ROWS UNBOUNDED PRECEDING" which row you want to partition
 select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations, 
-sum(cast(vac.new_vaccinations as int)) over (Partition by dea.location order by dea.location, dea.date ROWS UNBOUNDED PRECEDING) 
+sum(cast(vac.new_vaccinations as bigint)) over (Partition by dea.location order by dea.location, dea.date ROWS UNBOUNDED PRECEDING) 
 from Coviddeaths dea
 join Covidvaccination vac
 on dea.location = vac.location and dea.date = vac.date
